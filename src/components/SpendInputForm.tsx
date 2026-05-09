@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useFormStore } from '@/lib/store';
+import { calculateAudit } from '@/lib/auditCalculator';
 
 const AI_TOOLS = [
   'Cursor',
@@ -55,6 +56,20 @@ export default function SpendInputForm() {
   );
 
   const totalAnnual = useMemo(() => totalMonthly * 12, [totalMonthly]);
+
+  const audit = useMemo(
+    () => calculateAudit(tools, teamSize, primaryUseCase),
+    [tools, teamSize, primaryUseCase]
+  );
+
+  const topRecommendations = useMemo(
+    () =>
+      audit.toolBreakdown
+        .filter((tool) => tool.savings > 0)
+        .sort((a, b) => b.savings - a.savings)
+        .slice(0, 4),
+    [audit.toolBreakdown]
+  );
 
   const onSubmit = (data: FormValues) => {
     addTool({
@@ -186,6 +201,54 @@ export default function SpendInputForm() {
                 <span>Estimated annual spend</span>
                 <strong>${totalAnnual.toFixed(2)}</strong>
               </div>
+            </div>
+          </section>
+
+          <section className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 className="text-lg font-semibold mb-3">Instant Audit</h2>
+            <div className="space-y-4 text-sm text-slate-700">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Potential savings</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-900">
+                  ${audit.totalSavings.toFixed(2)}
+                </p>
+                <p className="text-slate-500">${(audit.totalSavings * 12).toFixed(2)} annual</p>
+              </div>
+
+              {tools.length === 0 ? (
+                <p className="text-slate-500">Add tools to see overspending and recommendations instantly.</p>
+              ) : (
+                <div className="space-y-3">
+                  <p className="font-semibold">Where you're overspending</p>
+                  {topRecommendations.length === 0 ? (
+                    <p className="text-slate-500">No immediate overspending detected. Review redundancy and seat usage.</p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {topRecommendations.map((tool) => (
+                        <li key={tool.toolId} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">{tool.toolName}</p>
+                              <p className="mt-1 text-xs text-slate-500">{tool.currentPlan} · ${tool.currentSpend.toFixed(2)}/month</p>
+                            </div>
+                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                              Save ${tool.savings.toFixed(2)}
+                            </span>
+                          </div>
+                          <p className="mt-3 text-sm text-slate-600">{tool.finalRecommendation}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {audit.redundancies.length > 0 && (
+                <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-semibold text-amber-900">Redundancy alert</p>
+                  <p className="mt-2 text-sm text-amber-800">{audit.redundancies[0]}</p>
+                </div>
+              )}
             </div>
           </section>
         </aside>
